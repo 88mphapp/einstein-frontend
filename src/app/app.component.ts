@@ -1,5 +1,6 @@
 import { Component } from '@angular/core';
 import { DomSanitizer } from '@angular/platform-browser';
+import BigNumber from 'bignumber.js';
 import { WalletService } from './wallet.service';
 
 @Component({
@@ -23,6 +24,8 @@ export class AppComponent {
     }
     this.themeURL = this.getThemeURL();
     wallet.connect(() => {}, () => {}, true);
+
+    BigNumber.config({ EXPONENTIAL_AT: 1e+9 });
   }
 
   setTheme(newThemeName: string): void {

@@ -1,0 +1,28 @@
+<div class="container-fluid justify-content-between px-0 px-lg-4">
+  <div>
+    <a class="text-white text-left mb-3 d-block mt-3" [routerLink]="">
+      <img class="logo" src="./assets/img/einstein.svg" class="mr-3" alt="Einstein logo" width="42px">
+      <span class="d-inline-block h3 mb-0 glowing">Einstein</span>
+    </a>
+  </div>
+  <div class="d-inline-flex">
+    <a class="btn btn-lg btn-light d-done d-md-block" href="https://etherscan...">
+      {{mphBalance.toFormat(4)}} EIN
+    </a>
+    <!-- Connect/watch button -->
+    <div class="btn-group ml-3">
+      <button type="button" class="btn btn-light btn-lg" (click)="connectWallet()">
+        <div *ngIf="wallet.connected && !wallet.watching">
+          {{wallet.userAddress.substring(0, 14)}}
+        </div>
+        <div *ngIf="!wallet.connected && !wallet.watching">
+          Connect Wallet
+        </div>
+        <div *ngIf="wallet.watching">
+          {{wallet.watchedAddress.substring(0, 14)}}
+        </div>
+      </button>
+    </div>
+
+  </div>
+</div>

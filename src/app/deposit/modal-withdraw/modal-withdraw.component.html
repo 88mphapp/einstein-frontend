@@ -1,0 +1,93 @@
+<!-- Modal: withdraw money -->
+<!-- IDEA: modal modalWithdraw -->
+<div class="modal-dialog modal-dialog-vertical" role="document">
+  <div class="modal-content">
+    <div class="modal-body pt-0 py-lg-0">
+      <div class="row no-gutters">
+        <div class="col-auto mr-auto">
+          <button class="btn btn-link text-white pl-0" type="button" name="button" data-dismiss="modal"
+            aria-label="Close" (click)="activeModal.dismiss()">
+            <i class="fe fe-arrow-left h2 mb-0"></i>
+          </button>
+        </div>
+      </div>
+      <div class="row justify-content-center">
+        <div class="col-12 col-lg-6 col-xl-6 pt-0 ">
+          <div class="row justify-content-center no-gutters">
+            <div class="col-12 col-lg-10 pt-3 pb-5">
+              <ng-container *ngIf="userDeposit.locked">
+                <h1 class="display-4 text-center">
+                  Withdraw early
+                </h1>
+                <p class="text-white small text-center mb-5">Withdraw your principal before the maturation date by
+                  giving up your interest & MPH rewards.</p>
+              </ng-container>
+              <ng-container *ngIf="!userDeposit.locked">
+                <h1 class="display-4 text-center">
+                  Withdraw
+                </h1>
+                <p class="text-white small text-center mb-5">It's time to get your fixed yield.</p>
+              </ng-container>
+
+              <div class="card">
+                <div class="card-body">
+                  <div class="row justify-content-center mb-4">
+                    <div class="col">
+                      <h6 class="header-pretitle mb-2">
+                        Principal to withdraw
+                      </h6>
+                      <h4 class="mb-1 font-weight-normal glowing">${{userDeposit.amountUSD.toFormat(4)}}</h4>
+                      <div class="text-white small d-block">{{userDeposit.amountToken.toFormat()}}
+                        {{poolInfo.stablecoinSymbol}}</div>
+                    </div>
+                    <div class="col" *ngIf="!userDeposit.locked">
+                      <h6 class="header-pretitle mb-2">
+                        Interest to withdraw
+                      </h6>
+                      <h4 class="mb-1 font-weight-normal glowing">${{userDeposit.interestEarnedUSD.toFormat(4)}}</h4>
+                      <div class="text-white small d-block">{{userDeposit.interestEarnedToken.toFormat()}}
+                        {{poolInfo.stablecoinSymbol}}</div>
+                    </div>
+                  </div>
+                  <div class="row justify-content-center mb-4">
+                    <div class="col-6">
+                      <h6 class="header-pretitle mb-2">
+                        Temporary MPH reward received
+                      </h6>
+                      <h4 class="mb-1 font-weight-normal glowing">{{mphRewardAmount.toFormat()}} MPH</h4>
+                      <div class="text-white small d-block">${{mphRewardAmount.times(mphPriceUSD).toFormat(4)}}</div>
+                    </div>
+                    <div class="col-6">
+                      <h6 class="header-pretitle mb-2">
+                        MPH to pay back
+                      </h6>
+                      <h4 class="mb-1 font-weight-normal glowing">{{mphTakeBackAmount.toFormat()}} MPH</h4>
+                      <div class="text-white small d-block">Your balance: {{mphBalance.toFormat()}}</div>
+                      <a class="text-white small" routerLink="/vesting" (click)="activeModal.dismiss()">
+                        <u>
+                          Check your vested MPH
+                        </u>
+                      </a>
+                    </div>
+                  </div>
+                  <div class="row justify-content-center">
+                    <div class="col">
+                      <button class="card-link btn-block" type="button" (click)="earlyWithdraw()"
+                        *ngIf="userDeposit.locked">
+                        Withdraw early
+                      </button>
+                      <button class="card-link btn-block" type="button" (click)="withdraw()"
+                        *ngIf="!userDeposit.locked">
+                        Withdraw
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

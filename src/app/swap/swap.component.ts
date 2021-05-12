@@ -4,8 +4,6 @@ import { ApolloQueryResult } from '@apollo/client/core';
 import { Apollo } from 'apollo-angular';
 import BigNumber from 'bignumber.js';
 import gql from 'graphql-tag';
-import { ModalDepositComponent } from './modal-deposit/modal-deposit.component';
-import { ModalWithdrawComponent } from './modal-withdraw/modal-withdraw.component';
 import { WalletService } from '../wallet.service';
 import { ContractService, PoolInfo } from '../contract.service';
 import { DPool, UserPool, UserDeposit } from './types';
@@ -55,11 +53,11 @@ const mockUser = {
 };
 
 @Component({
-  selector: 'app-deposit',
-  templateUrl: './deposit.component.html',
-  styleUrls: ['./deposit.component.css']
+  selector: 'app-swap',
+  templateUrl: './swap.component.html',
+  styleUrls: ['./swap.component.css']
 })
-export class DepositComponent implements OnInit {
+export class SwapComponent implements OnInit {
   YEAR_IN_SEC = 31556952; // Number of seconds in a year
   DECIMALS = 4;
 
@@ -310,16 +308,6 @@ export class DepositComponent implements OnInit {
     }
   }
 
-  openDepositModal(poolName?: string) {
-    const modalRef = this.modalService.open(ModalDepositComponent, { windowClass: 'fullscreen' });
-    modalRef.componentInstance.defaultPoolName = poolName;
-  }
-
-  openWithdrawModal(userDeposit: UserDeposit, poolInfo: PoolInfo) {
-    const modalRef = this.modalService.open(ModalWithdrawComponent, { windowClass: 'fullscreen' });
-    modalRef.componentInstance.userDeposit = userDeposit;
-    modalRef.componentInstance.poolInfo = poolInfo;
-  }
 }
 
 interface QueryResult {

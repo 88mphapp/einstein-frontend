@@ -11548,3 +11548,11 @@ a:focus, button:focus {
   border-bottom: 1px dotted #fff;
   line-height: 180%;
 }
+#content {
+  position: relative;
+  overflow: hidden;
+}
+.particle {
+  position: absolute;
+  will-change: transform;
+  pointer-events: none; }

@@ -1,57 +1,137 @@
-
-
-  <div class="container pt-4">
-    <div class="row justify-content-center">
-      <div class="col-12 col-lg-6">
-        <div class="card rounded-xl">
-          <div class="card-header">
-            Meet Einstein 🐕 the time-traveling pup coin from 'Back to the Future'
+<div class="container pt-4">
+  <div class="row justify-content-center">
+    <div class="col-12 col-lg-6">
+      <div class="card rounded-xl">
+        <div class="card-header">
+          Meet Einstein 🐕 the time-traveling pup coin from 'Back to the Future'
+        </div>
+        <div class="card-body">
+          <label for="">Give {{ isWoofing ? "MPH" : "EIN" }}</label>
+          <a
+            class="text-secondary small ml-3"
+            href="https://etherscan.io/token/{{
+              isWoofing ? constants.MPH : constants.EIN
+            }}"
+            target="_blank"
+            >Etherscan</a
+          >
+          <div class="input-group input-group-lg mb-3">
+            <div class="input-group-prepend">
+              <span class="input-group-text" id="inputGroup-sizing-lg">{{
+                isWoofing ? "MPH" : "EIN"
+              }}</span>
+            </div>
+            <input
+              type="text"
+              class="form-control"
+              placeholder="0.00"
+              aria-label=""
+              aria-describedby="basic-addon2"
+              [ngModel]="inputAmount.toString()"
+              (ngModelChange)="updateInputAmount($event)"
+            />
+            <div class="input-group-append">
+              <button
+                class="btn btn-outline-secondary"
+                type="button"
+                (click)="maxPower()"
+              >
+                Max
+              </button>
+            </div>
           </div>
-          <div class="card-body">
-            <label for="">Deposit MPH</label> <a class="text-secondary small ml-3" href="https://etherscan.io/token/0x8888801af4d980682e47f1a9036e589479e835c5" target="_blank">Etherscan</a>
-            <div class="input-group input-group-lg mb-3">
-              <div class="input-group-prepend">
-                <span class="input-group-text" id="inputGroup-sizing-lg">MPH</span>
-              </div>
-              <input type="text" class="form-control" placeholder="0.00" aria-label="" aria-describedby="basic-addon2">
-              <div class="input-group-append">
-                <button class="btn btn-outline-secondary" type="button">Max</button>
-              </div>
-            </div>
-            <div class="row justify-content-center">
-              <div class="col-auto">
-                <button class="btn btn-lg btn-rounded-circle btn-white"><img src="./assets/img/swap_vert_white_24dp.svg" class="" alt="Swap vertical icon"></button>
-              </div>
-            </div>
-            <label for="">Get EIN</label><a class="text-secondary small ml-3" href="https://etherscan.io/token/0x8888801af4d980682e47f1a9036e589479e835c5" target="_blank">Etherscan</a>
-            <div class="input-group input-group-lg mb-3">
-              <div class="input-group-prepend">
-                <span class="input-group-text" id="inputGroup-sizing-lg">EIN</span>
-              </div>
-              <input type="text" class="form-control" placeholder="0.00" aria-label="" aria-describedby="basic-addon2">
-              <div class="input-group-append">
-                <button class="btn btn-outline-secondary" type="button">Max</button>
-              </div>
+          <div class="row justify-content-center">
+            <div class="col-auto">
+              <button
+                class="btn btn-lg btn-rounded-circle btn-white"
+                (click)="isWoofing = !isWoofing"
+              >
+                <img
+                  src="./assets/img/swap_vert_white_24dp.svg"
+                  class=""
+                  alt="Swap vertical icon"
+                />
+              </button>
             </div>
           </div>
-          <div class="card-footer">
-            <div class="row">
-              <div class="col-6">
-                <a class="btn btn-lg btn-block btn-outline-white glowing" href="">Approve</a>
-              </div>
-              <div class="col-6">
-                <a class="btn btn-lg btn-block btn-bg-gradient border-0 glowing" href="">Mint</a>
-              </div>
+          <label for="">Get {{ isWoofing ? "EIN" : "MPH" }}</label
+          ><a
+            class="text-secondary small ml-3"
+            href="https://etherscan.io/token/{{
+              isWoofing ? constants.EIN : constants.MPH
+            }}"
+            target="_blank"
+            >Etherscan</a
+          >
+          <div class="input-group input-group-lg mb-3">
+            <div class="input-group-prepend">
+              <span class="input-group-text" id="inputGroup-sizing-lg">{{
+                isWoofing ? "EIN" : "MPH"
+              }}</span>
             </div>
+            <input
+              type="text"
+              class="form-control"
+              placeholder="0.00"
+              aria-label=""
+              aria-describedby="basic-addon2"
+              disabled
+              aria-disabled="true"
+              value="{{
+                isWoofing
+                  ? mphToEIN(inputAmount).toString()
+                  : einToMPH(inputAmount).toString()
+              }}"
+            />
           </div>
         </div>
-        <div class="row justify-content-center">
-          <div class="col-auto">
-            <p class="text-center text-secondary">Einstein - Doc Brown's sheepdog in the Back to the Future movies is, of course, the first of any of the characters who actually travels in time. A true pioneer!</p>
-            <p class="text-center text-secondary">Einstein coin brought to you by <a class="link-underlined" href="https://88mph.app" target="_blank">88mph.app</a></p>
+        <div class="card-footer">
+          <div class="row">
+            <div class="col-6" *ngIf="isWoofing">
+              <a
+                class="btn btn-lg btn-block btn-outline-white glowing"
+                [ngClass]="{ disabled: canWoof() }"
+                (click)="approve()"
+                >Approve</a
+              >
+            </div>
+            <div class="col-6" *ngIf="isWoofing">
+              <a
+                class="btn btn-lg btn-block btn-bg-gradient border-0 glowing"
+                [ngClass]="{ disabled: !canWoof() }"
+                (click)="woof()"
+                >Woof</a
+              >
+            </div>
+            <div class="col-12" *ngIf="!isWoofing">
+              <a
+                class="btn btn-lg btn-block btn-bg-gradient border-0 glowing"
+                (click)="unwoof()"
+                >Unwoof</a
+              >
+            </div>
           </div>
         </div>
       </div>
+      <div class="row justify-content-center">
+        <div class="col-auto">
+          <p class="text-center text-secondary">
+            Einstein - Doc Brown's sheepdog in the Back to the Future movies is,
+            of course, the first of any of the characters who actually travels
+            in time. A true pioneer!
+          </p>
+          <p class="text-center text-secondary">
+            Note: Woofing doesn't give you the EIN tokens immediately, they are
+            linearly unlocked to your wallet over 24 hours.
+          </p>
+          <p class="text-center text-secondary">
+            Einstein coin brought to you by
+            <a class="link-underlined" href="https://88mph.app" target="_blank"
+              >88mph.app</a
+            >
+          </p>
+        </div>
+      </div>
     </div>
-
   </div>
+</div>

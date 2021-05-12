@@ -1,76 +1,25 @@
 import { Component, OnInit } from '@angular/core';
-import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
-import { ApolloQueryResult } from '@apollo/client/core';
-import { Apollo } from 'apollo-angular';
 import BigNumber from 'bignumber.js';
-import gql from 'graphql-tag';
 import { WalletService } from '../wallet.service';
-import { ContractService, PoolInfo } from '../contract.service';
-import { DPool, UserPool, UserDeposit } from './types';
+import { ContractService } from '../contract.service';
 import { HelpersService } from '../helpers.service';
-import { Timer } from '../timer';
 import { ConstantsService } from '../constants.service';
-
-const mockUser = {
-  totalMPHEarned: 1e3,
-  pools: [
-    {
-      address: '0xb5EE8910A93F8A450E97BE0436F36B9458106682',
-      deposits: [
-        {
-          nftID: 1,
-          amount: 1e3,
-          maturationTimestamp: 1609459200,
-          depositTimestamp: 1601510400,
-          interestEarned: 1e2,
-          mintMPHAmount: 1e2,
-          takeBackMPHAmount: 0
-        }
-      ]
-    },
-    {
-      address: '0xEB2F0A3045db12366A9f6A8e922D725D86a117EB',
-      deposits: [
-        {
-          nftID: 1,
-          amount: 1e3,
-          maturationTimestamp: 1601510400,
-          depositTimestamp: 1601510400,
-          interestEarned: 1e2,
-          mintMPHAmount: 1e2,
-          takeBackMPHAmount: 0
-        }
-      ]
-    }
-  ],
-  totalDeposits: [{
-    pool: {
-      stablecoin: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'
-    },
-    totalActiveDeposit: 1e6,
-    totalInterestEarned: 1e4
-  }]
-};
 
 @Component({
   selector: 'app-swap',
   templateUrl: './swap.component.html',
-  styleUrls: ['./swap.component.css']
+  styleUrls: ['./swap.component.css'],
 })
 export class SwapComponent implements OnInit {
-  YEAR_IN_SEC = 31556952; // Number of seconds in a year
   DECIMALS = 4;
 
-  totalDepositUSD: BigNumber;
-  totalInterestUSD: BigNumber;
-  totalMPHEarned: BigNumber;
-  allPoolList: DPool[];
-  userPools: UserPool[];
-  mphPriceUSD: BigNumber;
+  isWoofing: boolean;
+  mphBalance: BigNumber;
+  einBalance: BigNumber;
+  mphAllowance: BigNumber;
+  inputAmount: BigNumber;
 
   constructor(
-    private modalService: NgbModal,
-    private apollo: Apollo,
     public wallet: WalletService,
     public contract: ContractService,
     public helpers: HelpersService,
@@ -80,7 +29,7 @@ export class SwapComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.loadData(this.wallet.connected || this.wallet.watching, true);
+    this.loadData(this.wallet.connected, true);
     this.wallet.connectedEvent.subscribe(() => {
       this.resetData(true, false);
       this.loadData(true, false);
@@ -91,260 +40,129 @@ export class SwapComponent implements OnInit {
   }
 
   async loadData(loadUser: boolean, loadGlobal: boolean) {
-    await this.helpers.getMPHPriceUSD().then((price) => {
-      this.mphPriceUSD = price;
-    });
+    const readonlyWeb3 = this.wallet.readonlyWeb3();
 
-    let userID;
-    if (this.wallet.connected && !this.wallet.watching) {
-      userID = this.wallet.userAddress.toLowerCase();
-    } else if (this.wallet.watching) {
-      userID = this.wallet.watchedAddress.toLowerCase();
-    } else {
-      userID = '';
-    }
-
-    const queryString = gql`
-      {
-        ${loadUser ? `user(id: "${userID}") {
-          totalMPHEarned
-          totalMPHPaidBack
-          pools {
-            id
-            address
-            mphDepositorRewardTakeBackMultiplier
-            deposits(where: { user: "${userID}", active: true }, orderBy: nftID) {
-              nftID
-              fundingID
-              amount
-              maturationTimestamp
-              depositTimestamp
-              interestEarned
-              mintMPHAmount
-              takeBackMPHAmount
-            }
-          }
-          totalDepositByPool {
-            pool {
-              address
-              stablecoin
-            }
-            totalActiveDeposit
-            totalInterestEarned
-          }
-        }` : ''}
-        ${loadGlobal ? `dpools {
-          id
-          address
-          totalActiveDeposit
-          oneYearInterestRate
-          mphDepositorRewardMintMultiplier
-          mphDepositorRewardTakeBackMultiplier
-        }` : ''}
-      }
-    `;
-    this.apollo.query<QueryResult>({
-      query: queryString
-    }).subscribe((x) => this.handleData(x));
-  }
-
-  async handleData(queryResult: ApolloQueryResult<QueryResult>) {
-    if (!queryResult.loading) {
-      const user = queryResult.data.user;
-      const dpools = queryResult.data.dpools;
-      let stablecoinPriceCache = {};
-      if (user) {
-        // update totalMPHEarned
-        this.totalMPHEarned = new BigNumber(user.totalMPHEarned).minus(user.totalMPHPaidBack);
-
-        // process user deposit list
-        const userPools: UserPool[] = [];
-        Promise.all(user.pools.map(async pool => {
-          if (pool.deposits.length == 0) return;
-          const poolInfo = this.contract.getPoolInfoFromAddress(pool.address);
-          const stablecoin = poolInfo.stablecoin.toLowerCase()
-          let stablecoinPrice = stablecoinPriceCache[stablecoin];
-          if (!stablecoinPrice) {
-            stablecoinPrice = await this.helpers.getTokenPriceUSD(stablecoin);
-            stablecoinPriceCache[stablecoin] = stablecoinPrice;
-          }
-          const userPoolDeposits: Array<UserDeposit> = [];
-          for (const deposit of pool.deposits) {
-            // compute MPH APY
-            let mphDepositorRewardTakeBackMultiplier = new BigNumber(pool.mphDepositorRewardTakeBackMultiplier);
-            const realMPHReward = new BigNumber(1).minus(mphDepositorRewardTakeBackMultiplier).times(deposit.mintMPHAmount);
-            const mphAPY = realMPHReward.times(this.mphPriceUSD).div(deposit.amount).div(stablecoinPrice).div(deposit.maturationTimestamp - deposit.depositTimestamp).times(this.constants.YEAR_IN_SEC).times(100);
-            const tempMPHAPY = new BigNumber(deposit.mintMPHAmount).times(this.mphPriceUSD).div(deposit.amount).div(stablecoinPrice).div(deposit.maturationTimestamp - deposit.depositTimestamp).times(this.constants.YEAR_IN_SEC).times(100);
-
-            // compute interest
-            const interestEarnedToken = this.helpers.applyFeeToInterest(new BigNumber(deposit.interestEarned), poolInfo);
-            const interestEarnedUSD = interestEarnedToken.times(stablecoinPrice);
-
-            const userPoolDeposit: UserDeposit = {
-              nftID: deposit.nftID,
-              fundingID: deposit.fundingID,
-              locked: deposit.maturationTimestamp >= (Date.now() / 1e3),
-              amountToken: new BigNumber(deposit.amount),
-              amountUSD: new BigNumber(deposit.amount).times(stablecoinPrice),
-              apy: interestEarnedToken.div(deposit.amount).div(deposit.maturationTimestamp - deposit.depositTimestamp).times(this.YEAR_IN_SEC).times(100),
-              countdownTimer: new Timer(deposit.maturationTimestamp, 'down'),
-              interestEarnedToken,
-              interestEarnedUSD,
-              mintMPHAmount: new BigNumber(deposit.mintMPHAmount),
-              realMPHReward: realMPHReward,
-              mphAPY: mphAPY,
-              tempMPHAPY: tempMPHAPY
-            }
-            userPoolDeposit.countdownTimer.start();
-            userPoolDeposits.push(userPoolDeposit);
-          }
-
-          const userPool: UserPool = {
-            poolInfo: poolInfo,
-            deposits: userPoolDeposits
-          };
-          userPools.push(userPool);
-        })).then(() => {
-          this.userPools = userPools;
+    if (loadUser) {
+      const mphToken = this.contract.getNamedContract('MPHToken', readonlyWeb3);
+      mphToken.methods
+        .balanceOf(this.wallet.userAddress)
+        .call()
+        .then((mphBalance) => {
+          this.mphBalance = new BigNumber(mphBalance).div(
+            this.constants.PRECISION
+          );
+        });
+      mphToken.methods
+        .allowance(this.wallet.userAddress, this.constants.EIN)
+        .call()
+        .then((allowance) => {
+          this.mphAllowance = new BigNumber(allowance).div(
+            this.constants.PRECISION
+          );
         });
 
-        // compute total deposit & interest in USD
-        let totalDepositUSD = new BigNumber(0);
-        let totalInterestUSD = new BigNumber(0);
-        Promise.all(user.totalDepositByPool.map(async totalDepositEntity => {
-          let stablecoinPrice = stablecoinPriceCache[totalDepositEntity.pool.stablecoin];
-          if (!stablecoinPrice) {
-            stablecoinPrice = await this.helpers.getTokenPriceUSD(totalDepositEntity.pool.stablecoin);
-            stablecoinPriceCache[totalDepositEntity.pool.stablecoin] = stablecoinPrice;
-          }
-
-          const poolInfo = this.contract.getPoolInfoFromAddress(totalDepositEntity.pool.address);
-          const poolDepositUSD = new BigNumber(totalDepositEntity.totalActiveDeposit).times(stablecoinPrice);
-          const poolInterestUSD = this.helpers.applyFeeToInterest(new BigNumber(totalDepositEntity.totalInterestEarned).times(stablecoinPrice), poolInfo);
-          totalDepositUSD = totalDepositUSD.plus(poolDepositUSD);
-          totalInterestUSD = totalInterestUSD.plus(poolInterestUSD);
-        })).then(() => {
-          this.totalDepositUSD = totalDepositUSD;
-          this.totalInterestUSD = totalInterestUSD;
+      const einToken = this.contract.getNamedContract('Einstein', readonlyWeb3);
+      einToken.methods
+        .balanceOf(this.wallet.userAddress)
+        .call()
+        .then((balance) => {
+          this.einBalance = new BigNumber(balance).div(
+            this.constants.PRECISION
+          );
         });
-      }
-      if (dpools) {
-        let allPoolList = new Array<DPool>(0);
-        Promise.all(dpools.map(async pool => {
-          const poolInfo = this.contract.getPoolInfoFromAddress(pool.address);
-
-          const stablecoin = poolInfo.stablecoin.toLowerCase()
-          let stablecoinPrice = stablecoinPriceCache[stablecoin];
-          if (!stablecoinPrice) {
-            stablecoinPrice = await this.helpers.getTokenPriceUSD(stablecoin);
-            stablecoinPriceCache[stablecoin] = stablecoinPrice;
-          }
-
-          // get MPH APY
-          const mphDepositorRewardMintMultiplier = new BigNumber(pool.mphDepositorRewardMintMultiplier);
-          const mphDepositorRewardTakeBackMultiplier = new BigNumber(pool.mphDepositorRewardTakeBackMultiplier);
-          const tempMPHAPY = mphDepositorRewardMintMultiplier.times(this.mphPriceUSD).times(this.YEAR_IN_SEC).div(stablecoinPrice).times(100);
-          const mphAPY = tempMPHAPY.times(new BigNumber(1).minus(mphDepositorRewardTakeBackMultiplier));
-
-          const dpoolObj: DPool = {
-            name: poolInfo.name,
-            protocol: poolInfo.protocol,
-            stablecoin: poolInfo.stablecoin,
-            stablecoinSymbol: poolInfo.stablecoinSymbol,
-            iconPath: poolInfo.iconPath,
-            totalDepositToken: new BigNumber(pool.totalActiveDeposit),
-            totalDepositUSD: new BigNumber(pool.totalActiveDeposit).times(stablecoinPrice),
-            oneYearInterestRate: this.helpers.applyFeeToInterest(pool.oneYearInterestRate, poolInfo).times(100),
-            mphAPY: mphAPY,
-            tempMPHAPY: tempMPHAPY
-          };
-          allPoolList.push(dpoolObj);
-        })).then(() => {
-          allPoolList.sort((a, b) => {
-            const aName = a.name;
-            const bName = b.name;
-            if (aName > bName) {
-              return 1;
-            }
-            if (aName < bName) {
-              return -1;
-            }
-            return 0;
-          });
-          this.allPoolList = allPoolList;
-        });
-      }
     }
   }
 
   resetData(resetUser: boolean, resetGlobal: boolean): void {
     if (resetUser) {
-      this.totalDepositUSD = new BigNumber(0);
-      this.totalInterestUSD = new BigNumber(0);
-      this.totalMPHEarned = new BigNumber(0);
-      this.userPools = [];
+      this.mphBalance = new BigNumber(0);
+      this.einBalance = new BigNumber(0);
+      this.mphAllowance = new BigNumber(0);
+      this.inputAmount = new BigNumber(0);
     }
 
     if (resetGlobal) {
-      const allPoolList = new Array<DPool>(0);
-      const poolInfoList = this.contract.getPoolInfoList();
-      for (const poolInfo of poolInfoList) {
-        const dpoolObj: DPool = {
-          name: poolInfo.name,
-          protocol: poolInfo.protocol,
-          stablecoin: poolInfo.stablecoin,
-          stablecoinSymbol: poolInfo.stablecoinSymbol,
-          iconPath: poolInfo.iconPath,
-          totalDepositToken: new BigNumber(0),
-          totalDepositUSD: new BigNumber(0),
-          oneYearInterestRate: new BigNumber(0),
-          mphAPY: new BigNumber(0),
-          tempMPHAPY: new BigNumber(0)
-        };
-        allPoolList.push(dpoolObj);
-      }
-      this.allPoolList = allPoolList;
-      this.mphPriceUSD = new BigNumber(0);
+      this.isWoofing = true;
     }
   }
 
-}
+  updateInputAmount(newAmount: string) {
+    this.inputAmount = new BigNumber(newAmount);
+  }
 
-interface QueryResult {
-  user: {
-    totalMPHEarned: number;
-    totalMPHPaidBack: number;
-    pools: {
-      id: string;
-      address: string;
-      mphDepositorRewardTakeBackMultiplier: number;
-      deposits: {
-        nftID: number;
-        fundingID: number;
-        amount: number;
-        maturationTimestamp: number;
-        depositTimestamp: number;
-        interestEarned: number;
-        mintMPHAmount: number;
-        takeBackMPHAmount: number;
-      }[];
-    }[];
-    totalDepositByPool: {
-      pool: {
-        address: string;
-        stablecoin: string;
-      };
-      totalActiveDeposit: number;
-      totalHistoricalDeposit: number;
-      totalInterestEarned: number;
-    }[];
-  };
-  dpools: {
-    id: string;
-    address: string;
-    totalActiveDeposit: number;
-    oneYearInterestRate: number;
-    mphDepositorRewardMintMultiplier: number;
-    mphDepositorRewardTakeBackMultiplier: number;
-  }[];
+  maxPower() {
+    if (this.isWoofing) {
+      this.inputAmount = this.mphBalance;
+    } else {
+      this.inputAmount = this.einBalance;
+    }
+  }
+
+  async approve() {
+    const mphToken = this.contract.getNamedContract('MPHToken');
+    const spender = this.constants.EIN;
+    const allowance = this.helpers.processWeb3Number(this.constants.INF);
+    const func = mphToken.methods.approve(spender, allowance);
+
+    await this.wallet.sendTx(
+      func,
+      () => {},
+      () => {
+        this.mphAllowance = this.constants.INF;
+      },
+      (err) => {
+        this.wallet.displayGenericError(err);
+      }
+    );
+  }
+
+  async woof() {
+    const einToken = this.contract.getNamedContract('Einstein');
+    const mphAmount = this.helpers.processWeb3Number(
+      this.inputAmount.times(this.constants.PRECISION)
+    );
+    const func = einToken.methods.woof(mphAmount);
+
+    await this.wallet.sendTx(
+      func,
+      () => {},
+      () => {
+        this.loadData(true, false);
+      },
+      (err) => {
+        this.wallet.displayGenericError(err);
+      }
+    );
+  }
+
+  async unwoof() {
+    const einToken = this.contract.getNamedContract('Einstein');
+    const einAmount = this.helpers.processWeb3Number(
+      this.inputAmount.times(this.constants.PRECISION)
+    );
+    const func = einToken.methods.unwoof(einAmount);
+
+    await this.wallet.sendTx(
+      func,
+      () => {},
+      () => {
+        this.loadData(true, false);
+      },
+      (err) => {
+        this.wallet.displayGenericError(err);
+      }
+    );
+  }
+
+  canWoof(): boolean {
+    return this.mphAllowance.gte(this.inputAmount);
+  }
+
+  einToMPH(einAmount: BigNumber): BigNumber {
+    return einAmount.div(this.constants.MULTIPLIER);
+  }
+
+  mphToEIN(mphAmount: BigNumber): BigNumber {
+    return mphAmount.times(this.constants.MULTIPLIER);
+  }
 }

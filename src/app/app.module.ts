@@ -9,14 +9,12 @@ import { HttpClientModule } from '@angular/common/http';
 import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
 import { SwapComponent } from './swap/swap.component';
 import { HeaderComponent } from './header/header.component';
-import { SyncWarningComponent } from './sync-warning/sync-warning.component';
 
 @NgModule({
   declarations: [
     AppComponent,
     SwapComponent,
-    HeaderComponent,
-    SyncWarningComponent
+    HeaderComponent
   ],
   imports: [
     BrowserModule,

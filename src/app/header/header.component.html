@@ -7,19 +7,19 @@
   </div>
   <div class="d-inline-flex">
     <a class="btn btn-lg btn-light d-done d-md-block" href="https://etherscan...">
-      {{mphBalance.toFormat(4)}} EIN
+      {{mphBalance.toFormat(4)}} MPH
+    </a>
+    <a class="btn btn-lg btn-light d-done d-md-block ml-3" href="https://etherscan...">
+      {{einBalance.toFormat(4)}} EIN
     </a>
     <!-- Connect/watch button -->
     <div class="btn-group ml-3">
       <button type="button" class="btn btn-light btn-lg" (click)="connectWallet()">
-        <div *ngIf="wallet.connected && !wallet.watching">
+        <div *ngIf="wallet.connected">
           {{wallet.userAddress.substring(0, 14)}}
         </div>
-        <div *ngIf="!wallet.connected && !wallet.watching">
+        <div *ngIf="!wallet.connected">
           Connect Wallet
-        </div>
-        <div *ngIf="wallet.watching">
-          {{wallet.watchedAddress.substring(0, 14)}}
         </div>
       </button>
     </div>

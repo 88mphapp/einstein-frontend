@@ -1,1 +1,1 @@
-ng deploy --repo=git@github.com:88mphapp/staging.git --branch=master --base-href=https://88mph.app/staging/
+ng deploy --repo=git@github.com:ZeframLou/einstein-deployment.git --branch=master --base-href=https://zeframlou.github.io/einstein-deployment/
